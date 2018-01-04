@@ -50,53 +50,51 @@ double vec_len(vector<double> &a)
 }
 
 string version;
-char buf[100000],buf1[100000];
 int relation_num,entity_num;
 map<string,int> relation2id,entity2id;
 map<int,string> id2entity,id2relation;
 
 
-map<int,map<int,int> > left_entity,right_entity;
 map<int,double> left_num,right_num;
 
 class Train{
 
 public:
-	map<pair<int,int>, map<int,int> > ok;
+	map<pair<int,int>, map<int,int> > train_set;
     void add(int x,int y,int z)
     {
-        fb_h.push_back(x);
-        fb_r.push_back(z);
-        fb_l.push_back(y);
-        ok[make_pair(x,z)][y]=1;
+        vec_head.push_back(x);
+        vec_relation.push_back(z);
+        vec_tail.push_back(y);
+        train_set[make_pair(x,z)][y]=1;
     }
     void run(int n_in,double rate_in,double margin_in,int method_in)
     {
-        n = n_in;
+        dim = n_in;
         rate = rate_in;
         margin = margin_in;
         method = method_in;
         relation_vec.resize(relation_num);
 		for (int i=0; i<relation_vec.size(); i++)
-			relation_vec[i].resize(n);
+			relation_vec[i].resize(dim);
         entity_vec.resize(entity_num);
 		for (int i=0; i<entity_vec.size(); i++)
-			entity_vec[i].resize(n);
+			entity_vec[i].resize(dim);
         relation_tmp.resize(relation_num);
 		for (int i=0; i<relation_tmp.size(); i++)
-			relation_tmp[i].resize(n);
+			relation_tmp[i].resize(dim);
         entity_tmp.resize(entity_num);
 		for (int i=0; i<entity_tmp.size(); i++)
-			entity_tmp[i].resize(n);
+			entity_tmp[i].resize(dim);
         for (int i=0; i<relation_num; i++)
         {
-            for (int ii=0; ii<n; ii++)
-                relation_vec[i][ii] = randn(0,1.0/n,-6/sqrt(n),6/sqrt(n));
+            for (int ii=0; ii<dim; ii++)
+                relation_vec[i][ii] = randn(0,1.0/dim,-6/sqrt(dim),6/sqrt(dim));
         }
         for (int i=0; i<entity_num; i++)
         {
-            for (int ii=0; ii<n; ii++)
-                entity_vec[i][ii] = randn(0,1.0/n,-6/sqrt(n),6/sqrt(n));
+            for (int ii=0; ii<dim; ii++)
+                entity_vec[i][ii] = randn(0,1.0/dim,-6/sqrt(dim),6/sqrt(dim));
             norm(entity_vec[i]);
         }
 
@@ -105,13 +103,10 @@ public:
     }
 
 private:
-    int n,method;
-    double res;//loss function value
-    double count,count1;//loss function gradient
+    int dim,method;
+    double loss;//loss function value
     double rate,margin;
-    double belta;
-    vector<int> fb_h,fb_l,fb_r;
-    vector<vector<int> > feature;
+    vector<int> vec_head,vec_tail,vec_relation;
     vector<vector<double> > relation_vec,entity_vec;
     vector<vector<double> > relation_tmp,entity_tmp;
     double norm(vector<double> &a)
@@ -132,57 +127,57 @@ private:
 
     void bfgs()
     {
-        res=0;
+        loss=0;
         int nbatches=100;
         int nepoch = 1000;
-        int batchsize = fb_h.size()/nbatches;
+        int batchsize = vec_head.size()/nbatches;
             for (int epoch=0; epoch<nepoch; epoch++)
             {
 
-            	res=0;
+            	loss=0;
              	for (int batch = 0; batch<nbatches; batch++)
              	{
              		relation_tmp=relation_vec;
             		entity_tmp = entity_vec;
              		for (int k=0; k<batchsize; k++)
              		{
-						int i=rand_max(fb_h.size());
+						int i=rand_max(vec_head.size());
 						int j=rand_max(entity_num);
-						double pr = 1000*right_num[fb_r[i]]/(right_num[fb_r[i]]+left_num[fb_r[i]]);
+						double pr = 1000*right_num[vec_relation[i]]/(right_num[vec_relation[i]]+left_num[vec_relation[i]]);
 						if (method ==0)
                             pr = 500;
 						if (rand()%1000<pr)
 						{
-							while (ok[make_pair(fb_h[i],fb_r[i])].count(j)>0)
+							while (train_set[make_pair(vec_head[i],vec_relation[i])].count(j)>0)
 								j=rand_max(entity_num);
-							train_kb(fb_h[i],fb_l[i],fb_r[i],fb_h[i],j,fb_r[i]);
+							train_kb(vec_head[i],vec_tail[i],vec_relation[i],vec_head[i],j,vec_relation[i]);
 						}
 						else
 						{
-							while (ok[make_pair(j,fb_r[i])].count(fb_l[i])>0)
+							while (train_set[make_pair(j,vec_relation[i])].count(vec_tail[i])>0)
 								j=rand_max(entity_num);
-							train_kb(fb_h[i],fb_l[i],fb_r[i],j,fb_l[i],fb_r[i]);
+							train_kb(vec_head[i],vec_tail[i],vec_relation[i],j,vec_tail[i],vec_relation[i]);
 						}
-                		norm(relation_tmp[fb_r[i]]);
-                		norm(entity_tmp[fb_h[i]]);
-                		norm(entity_tmp[fb_l[i]]);
+                		norm(relation_tmp[vec_relation[i]]);
+                		norm(entity_tmp[vec_head[i]]);
+                		norm(entity_tmp[vec_tail[i]]);
                 		norm(entity_tmp[j]);
              		}
 		            relation_vec = relation_tmp;
 		            entity_vec = entity_tmp;
              	}
-                cout<<"epoch:"<<epoch<<' '<<res<<endl;
+                cout<<"epoch:"<<epoch<<' '<<loss<<endl;
                 FILE* f2 = fopen(("relation2vec."+version).c_str(),"w");
                 FILE* f3 = fopen(("entity2vec."+version).c_str(),"w");
                 for (int i=0; i<relation_num; i++)
                 {
-                    for (int ii=0; ii<n; ii++)
+                    for (int ii=0; ii<dim; ii++)
                         fprintf(f2,"%.6lf\t",relation_vec[i][ii]);
                     fprintf(f2,"\n");
                 }
                 for (int i=0; i<entity_num; i++)
                 {
-                    for (int ii=0; ii<n; ii++)
+                    for (int ii=0; ii<dim; ii++)
                         fprintf(f3,"%.6lf\t",entity_vec[i][ii]);
                     fprintf(f3,"\n");
                 }
@@ -190,21 +185,20 @@ private:
                 fclose(f3);
             }
     }
-    double res1;
     double calc_sum(int e1,int e2,int rel)
     {
         double sum=0;
         if (L1_flag)
-        	for (int ii=0; ii<n; ii++)
+        	for (int ii=0; ii<dim; ii++)
             	sum+=fabs(entity_vec[e2][ii]-entity_vec[e1][ii]-relation_vec[rel][ii]);
         else
-        	for (int ii=0; ii<n; ii++)
+        	for (int ii=0; ii<dim; ii++)
             	sum+=sqr(entity_vec[e2][ii]-entity_vec[e1][ii]-relation_vec[rel][ii]);
         return sum;
     }
     void gradient(int e1_a,int e2_a,int rel_a,int e1_b,int e2_b,int rel_b)
     {
-        for (int ii=0; ii<n; ii++)
+        for (int ii=0; ii<dim; ii++)
         {
 
             double x = 2*(entity_vec[e2_a][ii]-entity_vec[e1_a][ii]-relation_vec[rel_a][ii]);
@@ -233,7 +227,7 @@ private:
         double sum2 = calc_sum(e1_b,e2_b,rel_b);
         if (sum1+margin>sum2)
         {
-        	res+=margin+sum1-sum2;
+        	loss+=margin+sum1-sum2;
         	gradient( e1_a, e2_a, rel_a, e1_b, e2_b, rel_b);
         }
     }
@@ -242,47 +236,49 @@ private:
 Train train;
 void prepare()
 {
+    map<int,map<int,int> > left_entity,right_entity;
+    char buf[100000];
     FILE* f1 = fopen("../data/entity2id.txt","r");
 	FILE* f2 = fopen("../data/relation2id.txt","r");
-	int x;
-	while (fscanf(f1,"%s%d",buf,&x)==2)
+	int id;
+	while (fscanf(f1,"%s%d",buf,&id)==2)
 	{
-		string st=buf;
-		entity2id[st]=x;
-		id2entity[x]=st;
+		string entity=buf;
+		entity2id[entity]=id;
+		id2entity[id]=entity;
 		entity_num++;
 	}
-	while (fscanf(f2,"%s%d",buf,&x)==2)
+	while (fscanf(f2,"%s%d",buf,&id)==2)
 	{
-		string st=buf;
-		relation2id[st]=x;
-		id2relation[x]=st;
+		string relation=buf;
+		relation2id[relation]=id;
+		id2relation[id]=relation;
 		relation_num++;
 	}
     FILE* f_kb = fopen("../data/train.txt","r");
 	while (fscanf(f_kb,"%s",buf)==1)
     {
-        string s1=buf;
+        string head=buf;
         fscanf(f_kb,"%s",buf);
-        string s2=buf;
+        string tail=buf;
         fscanf(f_kb,"%s",buf);
-        string s3=buf;
-        if (entity2id.count(s1)==0)
+        string relation=buf;
+        if (entity2id.count(head)==0)
         {
-            cout<<"miss entity:"<<s1<<endl;
+            cout<<"miss entity:"<<head<<endl;
         }
-        if (entity2id.count(s2)==0)
+        if (entity2id.count(tail)==0)
         {
-            cout<<"miss entity:"<<s2<<endl;
+            cout<<"miss entity:"<<tail<<endl;
         }
-        if (relation2id.count(s3)==0)
+        if (relation2id.count(relation)==0)
         {
-            relation2id[s3] = relation_num;
+            relation2id[relation] = relation_num;
             relation_num++;
         }
-        left_entity[relation2id[s3]][entity2id[s1]]++;
-        right_entity[relation2id[s3]][entity2id[s2]]++;
-        train.add(entity2id[s1],entity2id[s2],relation2id[s3]);
+        left_entity[relation2id[relation]][entity2id[head]]++;
+        right_entity[relation2id[relation]][entity2id[tail]]++;
+        train.add(entity2id[head],entity2id[tail],relation2id[relation]);
     }
     for (int i=0; i<relation_num; i++)
     {
@@ -343,5 +339,4 @@ int main(int argc,char**argv)
     prepare();
     train.run(n,rate,margin,method);
 }
-
 

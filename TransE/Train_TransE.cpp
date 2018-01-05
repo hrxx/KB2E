@@ -61,12 +61,12 @@ class Train{
 
 public:
 	map<pair<int,int>, map<int,int> > train_set;
-    void add(int x,int y,int z)
+    void add(int head,int tail,int relation)
     {
-        vec_head.push_back(x);
-        vec_relation.push_back(z);
-        vec_tail.push_back(y);
-        train_set[make_pair(x,z)][y]=1;
+        vec_head.push_back(head);
+        vec_relation.push_back(relation);
+        vec_tail.push_back(tail);
+        train_set[make_pair(head,relation)][tail]=1;
     }
     void run(int n_in,double rate_in,double margin_in,int method_in)
     {
